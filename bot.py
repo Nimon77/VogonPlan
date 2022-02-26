@@ -59,9 +59,9 @@ async def on_raw_reaction_add(payload):
 			msg = message.embeds[0]
 			value = msg.fields[id].value.splitlines()
 			if value[0] == "None":
-				value = payload.member.name
+				value = payload.member.display_name
 			else:
-				value.append(payload.member.name)
+				value.append(payload.member.display_name)
 				value = "\n".join(value)
 			msg.set_field_at(id, name=msg.fields[id].name, value=value)
 			await message.edit(embed=msg)
@@ -87,7 +87,9 @@ async def on_raw_reaction_add(payload):
 
 @client.event
 async def on_raw_reaction_remove(payload):
-	member = client.get_user(payload.user_id)
+	guild = client.get_guild(payload.guild_id)
+	member = guild.get_member(payload.user_id)
+	print(member.display_name)
 	if member and not member.bot and (payload.emoji.name == '1️⃣' or payload.emoji.name == '2️⃣'):
 		channel = client.get_channel(payload.channel_id)
 		message = await channel.fetch_message(payload.message_id)
@@ -97,7 +99,7 @@ async def on_raw_reaction_remove(payload):
 			value = msg.fields[id].value.splitlines()
 			while not False:
 				try:
-					value.remove(member.name)
+					value.remove(member.display_name)
 				except:
 					break
 			if (not value): value = "None"
