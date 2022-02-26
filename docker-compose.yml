@@ -1,0 +1,12 @@
+version: '3.9'
+
+services:
+  bot_benevole:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DISCORD_TOKEN: "YOU_BOT_TOKEN_HERE"
+    volumes:
+      - ./planning.json:/app/planning.json
+    restart: unless-stopped
