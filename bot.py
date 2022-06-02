@@ -22,29 +22,41 @@ async def on_message(message):
 
 	if message.content.startswith('$week') and message.author.guild_permissions.administrator:
 		now = datetime.now()
-		lundi = now + timedelta(days=(-now.weekday())+7)
+		if len(message.content.split()) == 1:
+			lundi = now + timedelta(days=(-now.weekday())+7)
+		else:
+			lundi = datetime.strptime(message.content.split()[1], '%d/%m/%Y')
+			if lundi.weekday() != 0:
+				await message.channel.send(f'Cette date n\'est pas un lundi. ($week <day>/<month>/<year>)')
+				return
 		try:
 			with open('planning.json', 'r') as f:
 				json_data = json.load(f)
 		except:
 			json_data = {}
+		await message.channel.send('<@&943868546079940678> le planning de presences de la semaine est arrivé !')
 		for i in range(0,5):
 			day = lundi + timedelta(days=i)
 			embed=discord.Embed(title=day.strftime("%a %d %B %Y"))
-			embed.add_field(name="Matin 1️⃣", value="None", inline=True)
-			embed.add_field(name="Après-midi 2️⃣", value="None", inline=True)
+			if json_data.get(day.strftime("%d/%m/%Y")) is not None:
+				embed.add_field(name="Matin 1️⃣", value="\n".join(json_data.get(day.strftime("%d/%m/%Y"))["Matin"]), inline=True)
+				embed.add_field(name="Après-midi 2️⃣", value="\n".join(json_data.get(day.strftime("%d/%m/%Y"))["Apres-midi"]), inline=True)
+			else:
+				embed.add_field(name="Matin 1️⃣", value="None", inline=True)
+				embed.add_field(name="Après-midi 2️⃣", value="None", inline=True)
 			msg = await message.channel.send(embed=embed)
 			await msg.add_reaction('1️⃣')
 			await msg.add_reaction('2️⃣')
-			json_data.update(
-				{
-					day.strftime("%d/%m/%Y"):
+			if json_data.get(day.strftime("%d/%m/%Y")) is None:
+				json_data.update(
 					{
-						"Matin": ["None"],
-						"Apres-midi": ["None"]
+						day.strftime("%d/%m/%Y"):
+						{
+							"Matin": ["None"],
+							"Apres-midi": ["None"]
+						}
 					}
-				}
-			)
+				)
 		with open('planning.json', 'w') as f:
 			json.dump(json_data, f)
 
@@ -61,7 +73,8 @@ async def on_raw_reaction_add(payload):
 			if value[0] == "None":
 				value = payload.member.display_name
 			else:
-				value.append(payload.member.display_name)
+				if payload.member.display_name not in value:
+					value.append(payload.member.display_name)
 				value = "\n".join(value)
 			msg.set_field_at(id, name=msg.fields[id].name, value=value)
 			await message.edit(embed=msg)
