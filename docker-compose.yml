@@ -9,4 +9,5 @@ services:
       DISCORD_TOKEN: "YOU_BOT_TOKEN_HERE"
     volumes:
       - ./planning.json:/app/planning.json
+      - ./cron.txt:/app/cron.txt
     restart: unless-stopped

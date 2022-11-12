@@ -15,4 +15,4 @@ WORKDIR /app
 RUN pip3 install --no-cache-dir --upgrade pip && \
 	pip3 install --no-cache-dir -r requirements.txt
 
-ENTRYPOINT [ "python3", "bot.py" ]
+ENTRYPOINT [ "python3", "botv2.py" ]
