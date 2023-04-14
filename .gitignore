@@ -1,2 +1,6 @@
 .venv/
 .python-version
+__pycache__/
+*.db
+cron.txt
+planning.json
