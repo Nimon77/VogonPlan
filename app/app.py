@@ -1,6 +1,8 @@
 import os, json, asyncio, discord, logging, coloredlogs, locale
 
 from discord.ext import commands
+from dotenv import load_dotenv
+from jours_feries_france import JoursFeries
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -14,6 +16,8 @@ from models.cron import Cron
 from models.user import User
 from models.schedule import Schedule
 from models.buttons import Buttons
+
+load_dotenv()
 
 coloredlogs.install(level='DEBUG')
 
@@ -33,6 +37,7 @@ class PesistentBot(commands.Bot):
 
 	async def setup_hook(self):
 		self.add_view(Buttons())
+		self.add_view(SingleButton())
 
 	async def on_ready(self):
 		global tasks
@@ -114,25 +119,26 @@ async def stop(interaction: discord.Interaction):
 		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
 
 
+		await interaction.response.defer()
 # ------------------ User management ------------------
 
 @bot.tree.command(name="add_user", description="Add a new user")
 @discord.app_commands.default_permissions(administrator=True)
-async def add_user(interaction: discord.Interaction, login: str, discord_user: discord.Member):
+async def add_user(interaction: discord.Interaction, discord_user: discord.User, first_name: str, last_name: str, login: str):
 	logging.debug(f"User {interaction.user} request add user {login} with discord id {discord_user.id}")
 	if (interaction.user.guild_permissions.administrator):
 		session = Session()
-		session.add(User(login=login, discord_id=discord_user.id))
+		session.add(User(discord_id=discord_user.id, first_name=first_name, last_name=last_name, login=login))
 		session.commit()
 		session.close()
 		await interaction.response.send_message(f"User `{login}` added with discord id <@{discord_user.id}>")
 	else:
 		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
 
-@bot.tree.command(name="remove_user", description="Remove a user")
+@bot.tree.command(name="disable_user", description="Disable a user")
 @discord.app_commands.default_permissions(administrator=True)
 async def remove_user(interaction: discord.Interaction, login: str):
-	logging.debug(f"User {interaction.user} request remove user {login}")
+	logging.debug(f"User {interaction.user} request disable for user {login}")
 	if (interaction.user.guild_permissions.administrator):
 		session = Session()
 		user = User.get_by_login(session, login)
@@ -140,7 +146,7 @@ async def remove_user(interaction: discord.Interaction, login: str):
 			session.delete(user)
 			session.commit()
 		session.close()
-		await interaction.response.send_message(f"User `{login}` removed")
+		await interaction.response.send_message(f"User `{login}` disabled", ephemeral=True)
 	else:
 		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
 
@@ -174,20 +180,64 @@ async def list_users(interaction: discord.Interaction):
 def number_to_emoji(number):
 	return [ "0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟" ][number]
 
+class SingleButton(discord.ui.View):
+	def __init__(self):
+		super().__init__(timeout=None)
+
+	@discord.ui.button(label="Matin", style=discord.ButtonStyle.green, custom_id="matin")
+	async def morning(self, interaction: discord.Interaction, button: discord.ui.Button):
+		await interaction.response.defer()
+		session = Session()
+		date = datetime.strptime(interaction.message.embeds[0].title, "%a %d %B %Y")
+		user = User.get_by_discord_id(session, interaction.user.id)
+		if user and user.active:
+			schedule = Schedule.switch_morning(session, user.id, date)
+			schedules = Schedule.get_by_date(session, date)
+			logging.debug(f"List Schedules: {schedules}")
+			edited_embed = interaction.message.embeds[0]
+			edited_embed.set_field_at(0, name="Matin", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedules) if schedule.morning ]))
+			await interaction.message.edit(embed=edited_embed)
+		session.close()
+
+
+	@discord.ui.button(label="Après-midi", style=discord.ButtonStyle.green, custom_id="apres-midi")
+	async def afternoon(self, interaction: discord.Interaction, button: discord.ui.Button):
+		await interaction.response.defer()
+		session = Session()
+		date = datetime.strptime(interaction.message.embeds[0].title, "%a %d %B %Y")
+		user = User.get_by_discord_id(session, interaction.user.id)
+		if user and user.active:
+			schedule = Schedule.switch_afternoon(session, user.id, date)
+			schedules = Schedule.get_by_date(session, date)
+			logging.debug(f"List Schedules: {schedules}")
+			edited_embed = interaction.message.embeds[0]
+			edited_embed.set_field_at(1, name="Après-midi", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedules) if schedule.afternoon ]))
+			await interaction.message.edit(embed=edited_embed)
+		session.close()
+
 @bot.tree.command(name="test", description="Test command")
 async def test(interaction: discord.Interaction):
+	await interaction.response.defer(ephemeral=True, thinking=False)
 	now = datetime.now()
 	lundi = now + timedelta(days=(-now.weekday())+7)
 
 	embeds = []
+	session = Session()
 	for i in range(0, 5):
 		day = lundi + timedelta(days=i)
-		embed = discord.Embed(title=number_to_emoji(i+1) + " " + day.strftime("%a %d %B %Y"), color=0x00FFFF)
-		embed.add_field(name="Matin", value="toto", inline=True)
-		embed.add_field(name="Après-midi", value="tata", inline=True)
-		embeds.append(embed)
-	await interaction.response.send_message(embeds=embeds, view=Buttons())
-
+		schedule = Schedule.get_by_date(session, day)
+		# Color gradient
+		bank = JoursFeries.is_bank_holiday(day, zone="Métropole")
+		embed = discord.Embed(title=day.strftime("%a %d %B %Y"), color=[0x00FFFF, 0xFF0000][bank])
+		embed.add_field(name="Matin", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedule) if schedule.morning ]))
+		embed.add_field(name="Après-midi", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedule) if schedule.afternoon ]))
+		if bank:
+			embed.set_footer(text="Jour férié")
+		if bank:
+			await interaction.channel.send(embed=embed)
+		else:
+			await interaction.channel.send(embed=embed, view=SingleButton())
+	session.close()
 
 if __name__ == "__main__":
 	logging.info("Starting...")

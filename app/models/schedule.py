@@ -2,7 +2,7 @@
 
 # Path: app/models/Planning.py
 
-import datetime, discord
+import datetime, discord, logging
 from .base import Base
 from sqlalchemy import Column, Integer, String, Date, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
@@ -15,6 +15,7 @@ class Schedule(Base):
     date = Column(Date, nullable=False)
     morning = Column(Boolean, nullable=False)
     afternoon = Column(Boolean, nullable=False)
+    user = relationship("User")
 
     def __init__(self, user_id, date, morning, afternoon):
         self.user_id = user_id
@@ -61,7 +62,7 @@ class Schedule(Base):
 
     @staticmethod
     def get_by_date(session, date):
-        return session.query(Schedule).filter_by(date=date).all()
+        return session.query(Schedule).filter_by(date=datetime.datetime.strftime(date, '%Y-%m-%d')).all()
 
     @staticmethod
     def get_by_user_id(session, user_id):
@@ -69,8 +70,32 @@ class Schedule(Base):
 
     @staticmethod
     def get_by_user_id_and_date(session, user_id, date):
-        return session.query(Schedule).filter_by(user_id=user_id, date=date).first()
+        return session.query(Schedule).filter_by(user_id=user_id, date=datetime.datetime.strftime(date, '%Y-%m-%d')).first()
 
     @staticmethod
     def get_by_date_range(session, start_date, end_date):
         return session.query(Schedule).filter(Schedule.date >= start_date, Schedule.date <= end_date).all()
+
+    @staticmethod
+    def switch_morning(session, user_id, date):
+        logging.debug("switch_morning")
+        schedule = Schedule.get_by_user_id_and_date(session, user_id, date)
+        if schedule:
+            schedule.morning = not schedule.morning
+        else:
+            schedule = Schedule(user_id, date, True, False)
+            session.add(schedule)
+        session.commit()
+        return schedule
+
+    @staticmethod
+    def switch_afternoon(session, user_id, date):
+        logging.debug("switch_afternoon")
+        schedule = Schedule.get_by_user_id_and_date(session, user_id, date)
+        if schedule:
+            schedule.afternoon = not schedule.afternoon
+        else:
+            schedule = Schedule(user_id, date, False, True)
+            session.add(schedule)
+        session.commit()
+        return schedule

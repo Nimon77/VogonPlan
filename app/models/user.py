@@ -1,28 +1,36 @@
 import datetime, discord
 from .base import Base
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Boolean
 
 class User(Base):
     __tablename__ = 'user'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     discord_id = Column(Integer, nullable=False)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
     login = Column(String(100), nullable=False)
+    active = Column(Boolean, nullable=False, default=True)
 
-    def __init__(self, discord_id, login):
+    def __init__(self, discord_id, first_name, last_name, login):
         self.discord_id = discord_id
+        self.first_name = first_name
+        self.last_name = last_name
         self.login = login
 
     def __repr__(self):
-        return f"<User {self.discord_id} {self.login}>"
+        return f"<User {self.discord_id} {self.first_name} {self.last_name} {self.login} {self.active}>"
 
     def __str__(self):
-        return f"{self.discord_id} {self.login}"
+        return f"{self.discord_id} {self.first_name} {self.last_name} {self.login} {self.active}"
 
     def to_dict(self):
         return {
             "id": self.id,
             "discord_id": self.discord_id,
-            "login": self.login
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "login": self.login,
+            "active": self.active
         }
 
     def to_json(self):
@@ -52,6 +60,9 @@ class User(Base):
     def get_all(session):
         return session.query(User).all()
 
+    def get_all_active(session):
+        return session.query(User).filter_by(active=True).all()
+
     @staticmethod
     def get_all_embed(session):
         embed = discord.Embed(
@@ -59,9 +70,9 @@ class User(Base):
             description = "Liste des utilisateurs",
             color = 0x00ff00
         )
-        for user in User.get_all(session):
+        for user in User.get_all_active(session):
             embed.add_field(
-                name = user.login,
+                name = f"{user.login}: {user.first_name} {user.last_name}",
                 value = f"<@{user.discord_id}>",
                 inline = False
             )

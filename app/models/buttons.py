@@ -1,4 +1,4 @@
-import discord, logging
+import discord, logging, datetime
 
 class Buttons(discord.ui.View):
 	def __init__(self):
@@ -6,9 +6,7 @@ class Buttons(discord.ui.View):
 
 	@discord.ui.button(label="Lun. Matin", style=discord.ButtonStyle.blurple, emoji="1️⃣" , row=0, custom_id=f"lun_matin")
 	async def button_lun_matin(self, interaction: discord.Interaction, button: discord.ui.Button):
-		logging.debug(f"Interaction : {interaction}")
-		logging.debug(f"Button : {button}")
-		logging.debug(f"Self : {self}")
+		logging.debug(f"Message {interaction.message.embeds[0].title} clicked")
 		await interaction.response.send_message(f"Button {button.label} clicked")
 
 	@discord.ui.button(label="Lun. Après-midi", style=discord.ButtonStyle.blurple, emoji="1️⃣", row=0, custom_id=f"lun_apresmidi")
