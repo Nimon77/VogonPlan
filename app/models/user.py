@@ -60,8 +60,17 @@ class User(Base):
     def get_all(session):
         return session.query(User).all()
 
+    @staticmethod
     def get_all_active(session):
         return session.query(User).filter_by(active=True).all()
+
+    @staticmethod
+    def get_all_active_partial(session, partial):
+        return session.query(User).filter_by(active=True).filter(User.login.like(f"%{partial}%")).all()
+
+    @staticmethod
+    def get_all_disabled_partial(session, partial):
+        return session.query(User).filter_by(active=False).filter(User.login.like(f"%{partial}%")).all()
 
     @staticmethod
     def get_all_embed(session):

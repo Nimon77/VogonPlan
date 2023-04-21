@@ -16,6 +16,7 @@ from models.cron import Cron
 from models.user import User
 from models.schedule import Schedule
 from models.buttons import Buttons
+from models.exception import ExceptionDay
 
 load_dotenv()
 
@@ -122,6 +123,30 @@ async def stop(interaction: discord.Interaction):
 		await interaction.response.defer()
 # ------------------ User management ------------------
 
+async def get_active_users_autocomplete(interaction: discord.Integration, current: str) -> list[discord.app_commands.Choice[str]]:
+	try:
+		session = Session()
+		users = User.get_all_active_partial(session, current)
+		logging.debug(f"Autocomplete for user {current} : {users}")
+		session.close()
+		if users:
+			return [discord.app_commands.Choice(name=user.login, value=user.login) for user in users]
+		return [discord.app_commands.Choice(name="No user found", value="")]
+	except Exception as e:
+		logging.error(f"Error while getting users for autocomplete : {e}")
+
+async def get_disabled_users_autocomplete(interaction: discord.Integration, current: str) -> list[discord.app_commands.Choice[str]]:
+	try:
+		session = Session()
+		users = User.get_all_disabled_partial(session, current)
+		logging.debug(f"Autocomplete for user {current} : {users}")
+		session.close()
+		if users:
+			return [discord.app_commands.Choice(name=user.login, value=user.login) for user in users]
+		return [discord.app_commands.Choice(name="No user found", value="")]
+	except Exception as e:
+		logging.error(f"Error while getting users for autocomplete : {e}")
+
 @bot.tree.command(name="add_user", description="Add a new user")
 @discord.app_commands.default_permissions(administrator=True)
 async def add_user(interaction: discord.Interaction, discord_user: discord.User, first_name: str, last_name: str, login: str):
@@ -137,6 +162,7 @@ async def add_user(interaction: discord.Interaction, discord_user: discord.User,
 
 @bot.tree.command(name="disable_user", description="Disable a user")
 @discord.app_commands.default_permissions(administrator=True)
+@discord.app_commands.autocomplete(login=get_active_users_autocomplete)
 async def remove_user(interaction: discord.Interaction, login: str):
 	logging.debug(f"User {interaction.user} request disable for user {login}")
 	if (interaction.user.guild_permissions.administrator):
@@ -150,8 +176,25 @@ async def remove_user(interaction: discord.Interaction, login: str):
 	else:
 		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
 
+@bot.tree.command(name="enable_user", description="Enable a user")
+@discord.app_commands.default_permissions(administrator=True)
+@discord.app_commands.autocomplete(login=get_users_autocomplete)
+async def enable_user(interaction: discord.Interaction, login: str):
+	logging.debug(f"User {interaction.user} request enable for user {login}")
+	if (interaction.user.guild_permissions.administrator):
+		session = Session()
+		user = User.get_by_login(session, login)
+		if user:
+			user.disabled = False
+			session.commit()
+		session.close()
+		await interaction.response.send_message(f"User `{login}` enabled", ephemeral=True)
+	else:
+		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
+
 @bot.tree.command(name="rename_user", description="Rename a user")
 @discord.app_commands.default_permissions(administrator=True)
+@discord.app_commands.autocomplete(login=get_active_users_autocomplete)
 async def rename_user(interaction: discord.Interaction, login: str, new_login: str):
 	logging.debug(f"User {interaction.user} request rename user {login} to {new_login}")
 	if (interaction.user.guild_permissions.administrator):
@@ -237,6 +280,81 @@ async def test(interaction: discord.Interaction):
 			await interaction.channel.send(embed=embed)
 		else:
 			await interaction.channel.send(embed=embed, view=SingleButton())
+	session.close()
+
+# TODO: Add a command to add a user to the planning
+# TODO: Add a command to remove a user from the planning
+
+# ------------------ Exceptions ------------------
+
+async def date_list_auto_complete(interaction: discord.Integration, current: str) -> list[discord.app_commands.Choice[str]]:
+	session = Session()
+	days = ExceptionDay.get_by_partial_date_as_list(session, current)
+	logging.debug(f"List days: {days}")
+	for day in days:
+		logging.debug(f"Day: {datetime.strftime(day, '%d/%m/%Y')}")
+	session.close()
+	if days:
+		return [ discord.app_commands.Choice(name=datetime.strftime(day, "%d/%m/%Y"), value=datetime.strftime(day, "%d/%m/%Y")) for day in days ]
+	else:
+		return [ discord.app_commands.Choice(name="No result", value="") ]
+
+@bot.tree.command(name="add_exception", description="Add an exception day")
+@discord.app_commands.default_permissions(administrator=True)
+@discord.app_commands.describe(date="Date of the exception day (DD/MM/YYYY)")
+async def add_exception(interaction: discord.Interaction, date: str):
+	logging.debug(f"User {interaction.user} request add exception")
+	if (interaction.user.guild_permissions.administrator):
+		date = datetime.strptime(date, "%d/%m/%Y")
+		session = Session()
+		try:
+			exception = ExceptionDay(date=date)
+			session.add(exception)
+			session.commit()
+			await interaction.response.send_message(f"Exception added: {exception}")
+		except Exception as e:
+			await interaction.response.send_message(f"Error: {e}", ephemeral=True)
+		session.close()
+	else:
+		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
+
+@bot.tree.command(name="remove_exception", description="Remove an exception day")
+@discord.app_commands.default_permissions(administrator=True)
+@discord.app_commands.autocomplete(date=date_list_auto_complete)
+@discord.app_commands.describe(date="Date of the exception day (DD/MM/YYYY)")
+async def remove_exception(interaction: discord.Interaction, date: str):
+	logging.debug(f"User {interaction.user} request remove exception")
+	if (interaction.user.guild_permissions.administrator):
+		date = datetime.strptime(date, "%d/%m/%Y")
+		session = Session()
+		try:
+			exception = ExceptionDay.get_by_date(session, date.date())
+			if exception:
+				session.delete(exception)
+				session.commit()
+				await interaction.response.send_message(f"Exception removed: {exception}")
+			else:
+				await interaction.response.send_message(f"Exception not found: {date.date()}", ephemeral=True)
+		except Exception as e:
+			await interaction.response.send_message(f"Error: {e}", ephemeral=True)
+		session.close()
+	else:
+		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
+
+# ------------------ Export ------------------
+
+# TODO: Add a command to export the planning to a CSV file
+
+@bot.tree.command(name="list_exception", description="List exception days")
+@discord.app_commands.default_permissions(administrator=True)
+async def list_exception(interaction: discord.Interaction):
+	logging.debug(f"User {interaction.user} request list exception")
+	session = Session()
+	try:
+		exceptions = ExceptionDay.get_all(session)
+		await interaction.response.send_message(f"List of exception days: {', '.join([ datetime.strftime(exception.date, '%d/%m/%Y') for exception in exceptions ])}")
+	except Exception as e:
+		await interaction.response.send_message(f"Error: {e}", ephemeral=True)
 	session.close()
 
 if __name__ == "__main__":
