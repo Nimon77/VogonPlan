@@ -140,6 +140,7 @@ async def get_disabled_users_autocomplete(interaction: discord.Integration, curr
 		session = Session()
 		users = User.get_all_disabled_partial(session, current)
 		logging.debug(f"Autocomplete for user {current} : {users}")
+		logging.debug(f"{User.get_all(session)}")
 		session.close()
 		if users:
 			return [discord.app_commands.Choice(name=user.login, value=user.login) for user in users]
@@ -151,73 +152,75 @@ async def get_disabled_users_autocomplete(interaction: discord.Integration, curr
 @discord.app_commands.default_permissions(administrator=True)
 async def add_user(interaction: discord.Interaction, discord_user: discord.User, first_name: str, last_name: str, login: str):
 	logging.debug(f"User {interaction.user} request add user {login} with discord id {discord_user.id}")
-	if (interaction.user.guild_permissions.administrator):
-		session = Session()
+	session = Session()
+	try:
 		session.add(User(discord_id=discord_user.id, first_name=first_name, last_name=last_name, login=login))
 		session.commit()
-		session.close()
 		await interaction.response.send_message(f"User `{login}` added with discord id <@{discord_user.id}>")
-	else:
-		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
+	except Exception as e:
+		logging.error(f"Error while adding user to database : {e}")
+		await interaction.response.send_message(f"Error while adding user to database : {e}", ephemeral=True)
+	session.close()
 
 @bot.tree.command(name="disable_user", description="Disable a user")
 @discord.app_commands.default_permissions(administrator=True)
 @discord.app_commands.autocomplete(login=get_active_users_autocomplete)
 async def remove_user(interaction: discord.Interaction, login: str):
 	logging.debug(f"User {interaction.user} request disable for user {login}")
-	if (interaction.user.guild_permissions.administrator):
-		session = Session()
-		user = User.get_by_login(session, login)
-		if user:
-			session.delete(user)
-			session.commit()
-		session.close()
-		await interaction.response.send_message(f"User `{login}` disabled", ephemeral=True)
-	else:
-		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
+	session = Session()
+	user = User.get_by_login(session, login)
+	if user:
+		user.active = False
+		session.commit()
+	session.close()
+	await interaction.response.send_message(f"User `{login}` disabled", ephemeral=True)
 
 @bot.tree.command(name="enable_user", description="Enable a user")
 @discord.app_commands.default_permissions(administrator=True)
-@discord.app_commands.autocomplete(login=get_users_autocomplete)
+@discord.app_commands.autocomplete(login=get_disabled_users_autocomplete)
 async def enable_user(interaction: discord.Interaction, login: str):
 	logging.debug(f"User {interaction.user} request enable for user {login}")
-	if (interaction.user.guild_permissions.administrator):
-		session = Session()
-		user = User.get_by_login(session, login)
-		if user:
-			user.disabled = False
-			session.commit()
-		session.close()
-		await interaction.response.send_message(f"User `{login}` enabled", ephemeral=True)
-	else:
-		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
+	session = Session()
+	user = User.get_by_login(session, login)
+	if user:
+		user.active = True
+		session.commit()
+	session.close()
+	await interaction.response.send_message(f"User `{login}` enabled", ephemeral=True)
 
 @bot.tree.command(name="rename_user", description="Rename a user")
 @discord.app_commands.default_permissions(administrator=True)
 @discord.app_commands.autocomplete(login=get_active_users_autocomplete)
 async def rename_user(interaction: discord.Interaction, login: str, new_login: str):
 	logging.debug(f"User {interaction.user} request rename user {login} to {new_login}")
-	if (interaction.user.guild_permissions.administrator):
-		session = Session()
-		user = User.get_by_login(session, login)
-		if user:
-			user.login = new_login
-			session.commit()
-		session.close()
-		await interaction.response.send_message(f"User `{login}` renamed to `{new_login}`")
-	else:
-		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
+	session = Session()
+	user = User.get_by_login(session, login)
+	if user:
+		user.login = new_login
+		session.commit()
+	session.close()
+	await interaction.response.send_message(f"User `{login}` renamed to `{new_login}`")
+
+@bot.tree.command(name="delete_user", description="Delete a user")
+@discord.app_commands.default_permissions(administrator=True)
+@discord.app_commands.autocomplete(login=get_active_users_autocomplete)
+async def delete_user(interaction: discord.Interaction, login: str):
+	logging.debug(f"User {interaction.user} request delete user {login}")
+	session = Session()
+	user = User.get_by_login(session, login)
+	if user:
+		session.delete(user)
+		session.commit()
+	session.close()
+	await interaction.response.send_message(f"User `{login}` deleted")
 
 @bot.tree.command(name="list_users", description="List all users")
 @discord.app_commands.default_permissions(administrator=True)
 async def list_users(interaction: discord.Interaction):
 	logging.debug(f"User {interaction.user} request list users")
-	if (interaction.user.guild_permissions.administrator):
-		session = Session()
-		await interaction.response.send_message(embed=User.get_all_embed(session))
-		session.close()
-	else:
-		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
+	session = Session()
+	await interaction.response.send_message(embed=User.get_all_embed(session))
+	session.close()
 
 # ------------------ Cron job ------------------
 def number_to_emoji(number):
@@ -260,27 +263,34 @@ class SingleButton(discord.ui.View):
 
 @bot.tree.command(name="test", description="Test command")
 async def test(interaction: discord.Interaction):
-	await interaction.response.defer(ephemeral=True, thinking=False)
-	now = datetime.now()
-	lundi = now + timedelta(days=(-now.weekday())+7)
+	try:
+		await interaction.response.defer(ephemeral=True, thinking=False)
+		now = datetime.now()
+		lundi = now + timedelta(days=(-now.weekday())+7)
 
-	embeds = []
-	session = Session()
-	for i in range(0, 5):
-		day = lundi + timedelta(days=i)
-		schedule = Schedule.get_by_date(session, day)
-		# Color gradient
-		bank = JoursFeries.is_bank_holiday(day, zone="Métropole")
-		embed = discord.Embed(title=day.strftime("%a %d %B %Y"), color=[0x00FFFF, 0xFF0000][bank])
-		embed.add_field(name="Matin", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedule) if schedule.morning ]))
-		embed.add_field(name="Après-midi", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedule) if schedule.afternoon ]))
-		if bank:
-			embed.set_footer(text="Jour férié")
-		if bank:
-			await interaction.channel.send(embed=embed)
-		else:
-			await interaction.channel.send(embed=embed, view=SingleButton())
-	session.close()
+		embeds = []
+		session = Session()
+		for i in range(0, 5):
+			day = lundi + timedelta(days=i)
+			schedule = Schedule.get_by_date(session, day)
+			# Color gradient
+			bank = JoursFeries.is_bank_holiday(day, zone="Métropole")
+			if (not bank):
+				exceptionDay = ExceptionDay.get_by_date(session, day) is not None
+			embed = discord.Embed(title=day.strftime("%a %d %B %Y"), color=[0x00FFFF, 0xFF0000][bank|exceptionDay])
+			embed.add_field(name="Matin", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedule) if schedule.morning ]))
+			embed.add_field(name="Après-midi", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedule) if schedule.afternoon ]))
+			if bank:
+				embed.set_footer(text="Jour férié")
+			if exceptionDay:
+				embed.set_footer(text="Exception")
+			if bank or exceptionDay:
+				await interaction.channel.send(embed=embed)
+			else:
+				await interaction.channel.send(embed=embed, view=SingleButton())
+		session.close()
+	except Exception as e:
+		logging.error(e)
 
 # TODO: Add a command to add a user to the planning
 # TODO: Add a command to remove a user from the planning
@@ -343,7 +353,63 @@ async def remove_exception(interaction: discord.Interaction, date: str):
 
 # ------------------ Export ------------------
 
-# TODO: Add a command to export the planning to a CSV file
+@bot.tree.command(name="export", description="Export the planning to a CSV file")
+@discord.app_commands.default_permissions(administrator=True)
+@discord.app_commands.describe(start_date="Start date of the export (DD/MM/YYYY)", end_date="End date of the export (DD/MM/YYYY)")
+async def export(interaction: discord.Interaction, start_date: str, end_date: str):
+	logging.debug(f"User {interaction.user} request export")
+	session = Session()
+	try:
+		# planning = Schedule.get_by_date_range(session, start_date, end_date)
+		planning = Schedule.get_by_date_range(session, datetime.strptime(start_date, "%d/%m/%Y"), datetime.strptime(end_date, "%d/%m/%Y"))
+		# parse planning to dict with date as key, and list of users as value
+		planning_dict = {}
+		users = []
+		for schedule in planning:
+			if schedule.date not in planning_dict:
+				planning_dict[schedule.date] = {"morning": [], "afternoon": []}
+			if schedule.morning:
+				planning_dict[schedule.date]["morning"].append(schedule.user)
+			if schedule.afternoon:
+				planning_dict[schedule.date]["afternoon"].append(schedule.user)
+			if schedule.user not in users:
+				users.append(schedule.user)
+		planning_dict = dict(sorted(planning_dict.items()))
+		logging.debug(f"Planning dict: {planning_dict}")
+
+		# Create the CSV file
+		with open("planning.csv", "w") as file:
+			file.write("Date;Matin;")
+			for i in range(len(users) - 1):
+				file.write(";")
+			file.write("Apres-midi")
+			for i in range(len(users) - 1):
+				file.write(";")
+			file.write("\n;")
+			for i in range(2):
+				for user in users:
+					file.write(f"{user.login};")
+			file.write("\n")
+			# Write the planning
+			for date in planning_dict:
+				file.write(f"{datetime.strftime(date, '%d/%m/%Y')};")
+				for user in users:
+					if user in planning_dict[date]["morning"]:
+						file.write("True;")
+					else:
+						file.write("False;")
+				for user in users:
+					if user in planning_dict[date]["afternoon"]:
+						file.write("True;")
+					else:
+						file.write("False;")
+				file.write("\n")
+		# Send the file
+		await interaction.response.send_message("Export done", file=discord.File("planning.csv"))
+	except Exception as e:
+		logging.error(f"Error: {e}")
+		await interaction.response.send_message(f"Error: {e}", ephemeral=True)
+	session.close()
 
 @bot.tree.command(name="list_exception", description="List exception days")
 @discord.app_commands.default_permissions(administrator=True)

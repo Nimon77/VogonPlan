@@ -34,8 +34,8 @@ class ExceptionDay(Base):
         return embed
 
     @staticmethod
-    def get_by_date(session, date):
-        return session.query(ExceptionDay).filter_by(date=date).first()
+    def get_by_date(session, date: datetime.date):
+        return session.query(ExceptionDay).filter_by(date=datetime.datetime.strftime(date, '%Y-%m-%d')).first()
 
     @staticmethod
     def get_all(session):
