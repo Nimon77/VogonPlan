@@ -4,4 +4,5 @@ __pycache__/
 *.db
 cron.txt
 planning.json
+planning.csv
 .env
