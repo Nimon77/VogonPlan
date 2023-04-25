@@ -5,10 +5,10 @@ from sqlalchemy import Column, Integer, String, Boolean
 class User(Base):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    discord_id = Column(Integer, nullable=False)
+    discord_id = Column(Integer, nullable=False, unique=True)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
-    login = Column(String(100), nullable=False)
+    login = Column(String(100), nullable=False, unique=True)
     active = Column(Boolean, nullable=False, default=True)
 
     def __init__(self, discord_id, first_name, last_name, login):
@@ -63,6 +63,10 @@ class User(Base):
     @staticmethod
     def get_all_active(session):
         return session.query(User).filter_by(active=True).all()
+
+    @staticmethod
+    def get_all_partial(session, partial):
+        return session.query(User).filter(User.login.like(f"%{partial}%")).all()
 
     @staticmethod
     def get_all_active_partial(session, partial):

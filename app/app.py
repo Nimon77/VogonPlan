@@ -148,6 +148,18 @@ async def get_disabled_users_autocomplete(interaction: discord.Integration, curr
 	except Exception as e:
 		logging.error(f"Error while getting users for autocomplete : {e}")
 
+async def get_users_autocomplete(interaction: discord.Integration, current: str) -> list[discord.app_commands.Choice[str]]:
+	try:
+		session = Session()
+		users = User.get_all_partial(session, current)
+		logging.debug(f"Autocomplete for user {current} : {users}")
+		session.close()
+		if users:
+			return [discord.app_commands.Choice(name=user.login, value=user.login) for user in users]
+		return [discord.app_commands.Choice(name="No user found", value="")]
+	except Exception as e:
+		logging.error(f"Error while getting users for autocomplete : {e}")
+
 @bot.tree.command(name="add_user", description="Add a new user")
 @discord.app_commands.default_permissions(administrator=True)
 async def add_user(interaction: discord.Interaction, discord_user: discord.User, first_name: str, last_name: str, login: str):
@@ -203,7 +215,7 @@ async def rename_user(interaction: discord.Interaction, login: str, new_login: s
 
 @bot.tree.command(name="delete_user", description="Delete a user")
 @discord.app_commands.default_permissions(administrator=True)
-@discord.app_commands.autocomplete(login=get_active_users_autocomplete)
+@discord.app_commands.autocomplete(login=get_users_autocomplete)
 async def delete_user(interaction: discord.Interaction, login: str):
 	logging.debug(f"User {interaction.user} request delete user {login}")
 	session = Session()

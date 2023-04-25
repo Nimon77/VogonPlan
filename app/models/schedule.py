@@ -5,17 +5,17 @@
 import datetime, discord, logging
 from .base import Base
 from sqlalchemy import Column, Integer, String, Date, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from .user import User
 
 class Schedule(Base):
     __tablename__ = 'schedule'
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('user.id'))
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
     date = Column(Date, nullable=False)
     morning = Column(Boolean, nullable=False)
     afternoon = Column(Boolean, nullable=False)
-    user = relationship("User")
+    user = relationship("User", backref=backref("schedule", cascade="all, delete-orphan"))
 
     def __init__(self, user_id, date, morning, afternoon):
         self.user_id = user_id
