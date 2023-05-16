@@ -5,7 +5,7 @@ from sqlalchemy import Column, Integer, String, Boolean
 class User(Base):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    discord_id = Column(String(18), nullable=False, unique=True)
+    discord_id = Column(String(255), nullable=False, unique=True)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     login = Column(String(100), nullable=False, unique=True)
