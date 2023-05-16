@@ -80,7 +80,7 @@ async def start_schedule(interaction: discord.Interaction, interval: str):
 			except Exception as e:
 				logging.error(f"Error while adding cron job to database : {e}")
 		else:
-			await interaction.response.send_message(f"This channel as already a cron job")
+			await interaction.response.send_message(f"This channel as already a cron job", ephemeral=True)
 	else:
 		await interaction.response.send_message(f"You need to be an administrator to use this command", ephemeral=True)
 
@@ -91,9 +91,9 @@ async def list_schedules(interaction: discord.Interaction):
 	if interaction.user.guild_permissions.administrator:
 		session = Session()
 		if len(session.query(Cron).all()) > 0:
-			await interaction.response.send_message(embed=Cron.get_all_embed(session))
+			await interaction.response.send_message(embed=Cron.get_all_embed(session), ephemeral=True)
 		else:
-			await interaction.response.send_message(f"No planned cron")
+			await interaction.response.send_message(f"No planned cron", ephemeral=True)
 	else:
 		await interaction.response.send_message(f"You need to be an administrator to use this command", ephemeral=True)
 
@@ -116,9 +116,9 @@ async def stop_schedule(interaction: discord.Interaction):
 					task.cancel()
 					tasks.remove(task)
 					break
-			await interaction.response.send_message(f"Stopping any cron job in this channel")
+			await interaction.response.send_message(f"Stopping any cron job in this channel", ephemeral=True)
 		else:
-			await interaction.response.send_message(f"No cron job in this channel")
+			await interaction.response.send_message(f"No cron job in this channel", ephemeral=True)
 	else:
 		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
 
@@ -169,7 +169,7 @@ async def add_user(interaction: discord.Interaction, discord_user: discord.User,
 	try:
 		session.add(User(discord_id=discord_user.id, first_name=first_name, last_name=last_name, login=login))
 		session.commit()
-		await interaction.response.send_message(f"User `{login}` added with discord id <@{discord_user.id}>")
+		await interaction.response.send_message(f"User `{login}` added with discord id <@{discord_user.id}>", ephemeral=True)
 	except Exception as e:
 		logging.error(f"Error while adding user to database : {e}")
 		await interaction.response.send_message(f"Error while adding user to database : {e}", ephemeral=True)
@@ -212,7 +212,7 @@ async def rename_user(interaction: discord.Interaction, login: str, new_login: s
 		user.login = new_login
 		session.commit()
 	session.close()
-	await interaction.response.send_message(f"User `{login}` renamed to `{new_login}`")
+	await interaction.response.send_message(f"User `{login}` renamed to `{new_login}`", ephemeral=True)
 
 @bot.tree.command(name="delete_user", description="Delete a user")
 @discord.app_commands.default_permissions(administrator=True)
@@ -225,7 +225,7 @@ async def delete_user(interaction: discord.Interaction, login: str):
 		session.delete(user)
 		session.commit()
 	session.close()
-	await interaction.response.send_message(f"User `{login}` deleted")
+	await interaction.response.send_message(f"User `{login}` deleted", ephemeral=True)
 
 @bot.tree.command(name="list_users", description="List all users")
 @discord.app_commands.default_permissions(administrator=True)

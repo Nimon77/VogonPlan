@@ -9,7 +9,7 @@ from sqlalchemy.orm import relationship
 class Cron(Base):
     __tablename__ = 'cron'
     id = Column(Integer, primary_key=True)
-    channel_id = Column(Integer, nullable=False, unique=True)
+    channel_id = Column(String(20), nullable=False, unique=True)
     interval = Column(String(100), nullable=False)
 
     def __init__(self, channel_id, interval):
