@@ -50,7 +50,7 @@ class PesistentBot(commands.Bot):
 		session = Session()
 		crons = Cron.get_all(session)
 		for cron in crons:
-			channel = self.get_channel(cron.channel_id)
+			channel = self.get_channel(int(cron.channel_id))
 			logging.info(msg=f"Restarting cron job with interval `{cron.interval}` for channel `{channel}` on server `{channel.guild}`")
 			tasks.append(self.loop.create_task(auto_schedule(cron.interval, channel), name=f"{channel.id}"))
 		logging.info(f'We have logged in as {self.user}')
