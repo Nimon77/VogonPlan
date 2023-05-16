@@ -248,9 +248,9 @@ class SingleButton(discord.ui.View):
 		await interaction.response.defer()
 		session = Session()
 		date = datetime.strptime(interaction.message.embeds[0].title, "%a %d %B %Y")
-		user = User.get_by_discord_id(session, interaction.user.id)
+		user = User.get_by_discord_id(session, str(interaction.user.id))
 		if user and user.active:
-			schedule = Schedule.switch_morning(session, str(user.id), date)
+			schedule = Schedule.switch_morning(session, user.id, date)
 			schedules = Schedule.get_by_date(session, date)
 			logging.debug(f"List Schedules: {schedules}")
 			edited_embed = interaction.message.embeds[0]
@@ -264,9 +264,9 @@ class SingleButton(discord.ui.View):
 		await interaction.response.defer()
 		session = Session()
 		date = datetime.strptime(interaction.message.embeds[0].title, "%a %d %B %Y")
-		user = User.get_by_discord_id(session, interaction.user.id)
+		user = User.get_by_discord_id(session, str(interaction.user.id))
 		if user and user.active:
-			schedule = Schedule.switch_afternoon(session, str(user.id), date)
+			schedule = Schedule.switch_afternoon(session, user.id, date)
 			schedules = Schedule.get_by_date(session, date)
 			logging.debug(f"List Schedules: {schedules}")
 			edited_embed = interaction.message.embeds[0]
