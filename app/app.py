@@ -53,6 +53,7 @@ class PesistentBot(commands.Bot):
 			channel = self.get_channel(int(cron.channel_id))
 			logging.info(msg=f"Restarting cron job with interval `{cron.interval}` for channel `{channel}` on server `{channel.guild}`")
 			tasks.append(self.loop.create_task(auto_schedule(cron.interval, channel), name=f"{channel.id}"))
+		session.close()
 		logging.info(f'We have logged in as {self.user}')
 
 bot = PesistentBot()
@@ -250,11 +251,11 @@ class SingleButton(discord.ui.View):
 		date = datetime.strptime(interaction.message.embeds[0].title, "%a %d %B %Y")
 		user = User.get_by_discord_id(session, str(interaction.user.id))
 		if user and user.active:
-			schedule = Schedule.switch_morning(session, user.id, date)
-			schedules = Schedule.get_by_date(session, date)
+			Schedule.switch_morning(session, user.id, date)
+			schedules = [ schedule for schedule in Schedule.get_by_date(session, date) if schedule.morning ]
 			logging.debug(f"List Schedules: {schedules}")
 			edited_embed = interaction.message.embeds[0]
-			edited_embed.set_field_at(0, name="Matin", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedules) if schedule.morning ]))
+			edited_embed.set_field_at(0, name="Matin", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedules) ]))
 			await interaction.message.edit(embed=edited_embed)
 		session.close()
 
@@ -266,12 +267,27 @@ class SingleButton(discord.ui.View):
 		date = datetime.strptime(interaction.message.embeds[0].title, "%a %d %B %Y")
 		user = User.get_by_discord_id(session, str(interaction.user.id))
 		if user and user.active:
-			schedule = Schedule.switch_afternoon(session, user.id, date)
-			schedules = Schedule.get_by_date(session, date)
+			Schedule.switch_afternoon(session, user.id, date)
+			schedules = [ schedule for schedule in Schedule.get_by_date(session, date) if schedule.afternoon ]
 			logging.debug(f"List Schedules: {schedules}")
 			edited_embed = interaction.message.embeds[0]
-			edited_embed.set_field_at(1, name="Après-midi", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedules) if schedule.afternoon ]))
+			edited_embed.set_field_at(1, name="Après-midi", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedules) ]))
 			await interaction.message.edit(embed=edited_embed)
+		session.close()
+
+	@discord.ui.button(emoji="🔄", style=discord.ButtonStyle.blurple, custom_id="reload")
+	async def reload(self, interaction: discord.Interaction, button: discord.ui.Button):
+		await interaction.response.defer()
+		session = Session()
+		date = datetime.strptime(interaction.message.embeds[0].title, "%a %d %B %Y")
+		schedules = Schedule.get_by_date(session, date)
+		schedules_morning = [ schedule for schedule in schedules if schedule.morning ]
+		schedules_afternoon = [ schedule for schedule in schedules if schedule.afternoon ]
+		logging.debug(f"List Schedules: {schedules}")
+		edited_embed = interaction.message.embeds[0]
+		edited_embed.set_field_at(0, name="Matin", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedules_morning) ]))
+		edited_embed.set_field_at(1, name="Après-midi", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedules_afternoon) ]))
+		await interaction.message.edit(embed=edited_embed)
 		session.close()
 
 async def send_schedule(channel, lundi):
