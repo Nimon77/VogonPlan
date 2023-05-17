@@ -1,4 +1,4 @@
-import os, json, asyncio, discord, logging, coloredlogs, locale
+import os, json, asyncio, discord, logging, coloredlogs, locale, requests
 
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -294,18 +294,22 @@ async def send_schedule(channel, lundi):
 	try:
 		embeds = []
 		session = Session()
+		JoursFeries = requests.get("https://calendrier.api.gouv.fr/jours-feries/metropole/" + str(lundi.year) + ".json").json()
 		for i in range(0, 5):
 			day = lundi + timedelta(days=i)
 			schedule = Schedule.get_by_date(session, day)
 			# Color gradient
-			bank = JoursFeries.is_bank_holiday(day, zone="Métropole")
-			if (not bank):
+			bank = day.strftime("%Y-%m-%d") in JoursFeries
+			bankName = JoursFeries[day.strftime("%Y-%m-%d")] if bank else None
+			if not bank:
 				exceptionDay = ExceptionDay.get_by_date(session, day) is not None
+			logging.debug(f"Day: {day} Bank: {bank} Exception: {exceptionDay}")
 			embed = discord.Embed(title=day.strftime("%a %d %B %Y"), color=[0x00FFFF, 0xFF0000][bank|exceptionDay])
-			embed.add_field(name="Matin", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedule) if schedule.morning ]))
-			embed.add_field(name="Après-midi", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedule) if schedule.afternoon ]))
+			if not bank and not exceptionDay:
+				embed.add_field(name="Matin", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedule) if schedule.morning ]))
+				embed.add_field(name="Après-midi", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedule) if schedule.afternoon ]))
 			if bank:
-				embed.set_footer(text="Jour férié")
+				embed.set_footer(text="Jour férié : " + bankName)
 			if exceptionDay:
 				embed.set_footer(text="Exception")
 			if bank or exceptionDay:

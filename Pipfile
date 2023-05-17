@@ -9,8 +9,8 @@ coloredlogs = "*"
 crontab = "*"
 sqlalchemy = "*"
 psycopg2-binary = "*"
-jours-feries-france = "*"
 python-dotenv = "*"
+requests = "*"
 
 [dev-packages]
 
