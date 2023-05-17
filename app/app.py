@@ -2,7 +2,6 @@ import os, json, asyncio, discord, logging, coloredlogs, locale, requests
 
 from discord.ext import commands
 from dotenv import load_dotenv
-from jours_feries_france import JoursFeries
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
