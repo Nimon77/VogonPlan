@@ -329,6 +329,7 @@ async def auto_schedule(interval, channel):
 		while not bot.is_closed():
 			await asyncio.sleep(cron.next(default_utc=True))
 			now = datetime.now()
+			await channel.send(f":goose: <@943868546079940678> the schedule for the week of {now.strftime('%d/%m/%Y')} is ready ! :goose:")
 			await send_schedule(channel, now + timedelta(days=(-now.weekday())+7))
 	except asyncio.CancelledError:
 		logging.debug(f"Stop cron job {interval} for channel {channel}")
