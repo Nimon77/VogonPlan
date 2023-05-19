@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  bot_benevole:
+  vogonplan:
     image: ghcr.io/nimon77/vogonplan:latest
     environment:
       DISCORD_TOKEN: ${DISCORD_TOKEN}
