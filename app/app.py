@@ -104,8 +104,8 @@ async def stop_schedule(interaction: discord.Interaction):
 	global tasks
 	logging.info(f"User {interaction.user} request stop planning cron in channel {interaction.channel} <#{interaction.channel_id}>")
 	if (interaction.user.guild_permissions.administrator):
-		logging.debug(f"Tasks : {[int(task.get_name()) for task in tasks]}")
-		if (interaction.channel_id in [int(task.get_name()) for task in tasks]):
+		logging.debug(f"Tasks : {[task.get_name() for task in tasks]}")
+		if (interaction.channel_id in [task.get_name() for task in tasks]):
 			logging.debug(f"Stopping cron job in {interaction.channel_id}")
 			session = Session()
 			session.delete(Cron.get_by_channel_id(session, interaction.channel_id))
