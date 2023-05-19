@@ -2,12 +2,10 @@ version: "3.9"
 
 services:
   bot_benevole:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/nimon77/vogonplan:latest
     environment:
-      DISCORD_TOKEN: "YOUR_TOKEN_HERE"
-      ENGINE_URL: "postgresql://vogon:POSTGRES_PASSWORD@postgres/postgres"
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      ENGINE_URL: ${ENGINE_URL}
       # DEBUG: "true"
     restart: unless-stopped
   postgres:
