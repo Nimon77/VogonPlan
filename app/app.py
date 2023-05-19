@@ -66,36 +66,30 @@ bot = PesistentBot()
 async def start_schedule(interaction: discord.Interaction, interval: str):
 	global tasks
 	logging.debug(f"User {interaction.user} request start schedule cron in channel `{interaction.channel}` with interval `{interval}` on server `{interaction.guild}`")
-	if interaction.user.guild_permissions.administrator:
-		logging.debug(f"Tasks : {[int(task.get_name()) for task in tasks]}")
-		if interaction.channel.id not in [int(task.get_name()) for task in tasks]:
-			logging.debug(f"Starting cron job in {interaction.channel_id}")
-			try:
-				session = Session()
-				session.add(Cron(channel_id=interaction.channel_id, interval=interval))
-				session.commit()
-				session.close()
-				tasks.append(bot.loop.create_task(auto_schedule(interval, interaction.channel), name=f'{interaction.channel_id}'))
-				await interaction.response.send_message(f"Saving this channel for cron job `{interval}`")
-			except Exception as e:
-				logging.error(f"Error while adding cron job to database : {e}")
-		else:
-			await interaction.response.send_message(f"This channel as already a cron job", ephemeral=True)
+	logging.debug(f"Tasks : {[int(task.get_name()) for task in tasks]}")
+	if interaction.channel.id not in [int(task.get_name()) for task in tasks]:
+		logging.debug(f"Starting cron job in {interaction.channel_id}")
+		try:
+			session = Session()
+			session.add(Cron(channel_id=interaction.channel_id, interval=interval))
+			session.commit()
+			session.close()
+			tasks.append(bot.loop.create_task(auto_schedule(interval, interaction.channel), name=f'{interaction.channel_id}'))
+			await interaction.response.send_message(f"Saving this channel for cron job `{interval}`")
+		except Exception as e:
+			logging.error(f"Error while adding cron job to database : {e}")
 	else:
-		await interaction.response.send_message(f"You need to be an administrator to use this command", ephemeral=True)
+		await interaction.response.send_message(f"This channel as already a cron job", ephemeral=True)
 
 @bot.tree.command(name = "list_schedules", description = "List all planned cron")
 @discord.app_commands.default_permissions(administrator=True)
 async def list_schedules(interaction: discord.Interaction):
 	logging.debug(f"User {interaction.user} request list planned cron on server `{interaction.guild}`")
-	if interaction.user.guild_permissions.administrator:
-		session = Session()
-		if len(session.query(Cron).all()) > 0:
-			await interaction.response.send_message(embed=Cron.get_all_embed(session), ephemeral=True)
-		else:
-			await interaction.response.send_message(f"No planned cron", ephemeral=True)
+	session = Session()
+	if len(session.query(Cron).all()) > 0:
+		await interaction.response.send_message(embed=Cron.get_all_embed(session), ephemeral=True)
 	else:
-		await interaction.response.send_message(f"You need to be an administrator to use this command", ephemeral=True)
+		await interaction.response.send_message(f"No planned cron", ephemeral=True)
 
 
 @bot.tree.command(name = "stop_schedule", description = "Stop planned cron in this channel")
@@ -103,24 +97,21 @@ async def list_schedules(interaction: discord.Interaction):
 async def stop_schedule(interaction: discord.Interaction):
 	global tasks
 	logging.info(f"User {interaction.user} request stop planning cron in channel {interaction.channel} <#{interaction.channel_id}>")
-	if (interaction.user.guild_permissions.administrator):
-		logging.debug(f"Tasks : {[task.get_name() for task in tasks]}")
-		if (interaction.channel_id in [task.get_name() for task in tasks]):
-			logging.debug(f"Stopping cron job in {interaction.channel_id}")
-			session = Session()
-			session.delete(Cron.get_by_channel_id(session, interaction.channel_id))
-			session.commit()
-			session.close()
-			for task in tasks:
-				if task.get_name() == str(interaction.channel_id):
-					task.cancel()
-					tasks.remove(task)
-					break
-			await interaction.response.send_message(f"Stopping any cron job in this channel", ephemeral=True)
-		else:
-			await interaction.response.send_message(f"No cron job in this channel", ephemeral=True)
+	logging.debug(f"Tasks : {[task.get_name() for task in tasks]}")
+	if (str(interaction.channel_id) in [task.get_name() for task in tasks]):
+		logging.debug(f"Stopping cron job in {interaction.channel_id}")
+		session = Session()
+		session.delete(Cron.get_by_channel_id(session, str(interaction.channel_id)))
+		session.commit()
+		session.close()
+		for task in tasks:
+			if task.get_name() == str(interaction.channel_id):
+				task.cancel()
+				tasks.remove(task)
+				break
+		await interaction.response.send_message(f"Stopping any cron job in this channel", ephemeral=True)
 	else:
-		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
+		await interaction.response.send_message(f"No cron job in this channel", ephemeral=True)
 
 # ------------------ User management ------------------
 
