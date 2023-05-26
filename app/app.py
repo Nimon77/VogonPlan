@@ -357,19 +357,16 @@ async def date_list_auto_complete(interaction: discord.Integration, current: str
 @discord.app_commands.describe(date="Date of the exception day (DD/MM/YYYY)")
 async def add_exception(interaction: discord.Interaction, date: str):
 	logging.info(f"User {interaction.user} request add exception")
-	if (interaction.user.guild_permissions.administrator):
-		date = datetime.strptime(date, "%d/%m/%Y")
-		session = Session()
-		try:
-			exception = ExceptionDay(date=date)
-			session.add(exception)
-			session.commit()
-			await interaction.response.send_message(f"Exception added: {exception}")
-		except Exception as e:
-			await interaction.response.send_message(f"Error: {e}", ephemeral=True)
-		session.close()
-	else:
-		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
+    date = datetime.strptime(date, "%d/%m/%Y")
+    session = Session()
+    try:
+    	exception = ExceptionDay(date=date)
+    	session.add(exception)
+    	session.commit()
+    	await interaction.response.send_message(f"Exception added: {exception}")
+    except Exception as e:
+    	await interaction.response.send_message(f"Error: {e}", ephemeral=True)
+    session.close()
 
 @bot.tree.command(name="remove_exception", description="Remove an exception day")
 @discord.app_commands.default_permissions(administrator=True)
@@ -377,22 +374,19 @@ async def add_exception(interaction: discord.Interaction, date: str):
 @discord.app_commands.describe(date="Date of the exception day (DD/MM/YYYY)")
 async def remove_exception(interaction: discord.Interaction, date: str):
 	logging.info(f"User {interaction.user} request remove exception")
-	if (interaction.user.guild_permissions.administrator):
-		date = datetime.strptime(date, "%d/%m/%Y")
-		session = Session()
-		try:
-			exception = ExceptionDay.get_by_date(session, date.date())
-			if exception:
-				session.delete(exception)
-				session.commit()
-				await interaction.response.send_message(f"Exception removed: {exception}")
-			else:
-				await interaction.response.send_message(f"Exception not found: {date.date()}", ephemeral=True)
-		except Exception as e:
-			await interaction.response.send_message(f"Error: {e}", ephemeral=True)
-		session.close()
-	else:
-		await interaction.response.send_message(f"You are not an administrator", ephemeral=True)
+    date = datetime.strptime(date, "%d/%m/%Y")
+    session = Session()
+    try:
+    	exception = ExceptionDay.get_by_date(session, date.date())
+    	if exception:
+    		session.delete(exception)
+    		session.commit()
+    		await interaction.response.send_message(f"Exception removed: {exception}")
+    	else:
+    		await interaction.response.send_message(f"Exception not found: {date.date()}", ephemeral=True)
+    except Exception as e:
+    	await interaction.response.send_message(f"Error: {e}", ephemeral=True)
+    session.close()
 
 # ------------------ Export ------------------
 
