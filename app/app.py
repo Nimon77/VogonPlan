@@ -293,6 +293,7 @@ async def send_schedule(channel, lundi):
 			# Color gradient
 			bank = day.strftime("%Y-%m-%d") in JoursFeries
 			bankName = JoursFeries[day.strftime("%Y-%m-%d")] if bank else None
+			exceptionDay = False
 			if not bank:
 				exceptionDay = ExceptionDay.get_by_date(session, day) is not None
 			logging.debug(f"Day: {day} Bank: {bank} Exception: {exceptionDay}")
@@ -470,3 +471,4 @@ if __name__ == "__main__":
 	Base.metadata.create_all(engine)
 	Session = sessionmaker(bind=engine)
 	bot.run(os.environ.get('DISCORD_TOKEN'))
+
