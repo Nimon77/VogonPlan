@@ -46,14 +46,21 @@ class PesistentBot(commands.Bot):
 		global tasks
 		await self.tree.sync()
 		# restart cron from file
+		logging.info(f'We have logged in as {self.user}')
 		session = Session()
 		crons = Cron.get_all(session)
+		if len(crons) > 0:
+			logging.info(f"Restarting {len(crons)} cron jobs")
+		else:
+			logging.info(f"No cron job to restart")
 		for cron in crons:
 			channel = self.get_channel(int(cron.channel_id))
+			if f"{channel.id}" in [task.get_name() for task in tasks]:
+				logging.info(msg=f"Cron job with interval `{cron.interval}` for channel `{channel}` on server `{channel.guild}` already running")
+				continue
 			logging.info(msg=f"Restarting cron job with interval `{cron.interval}` for channel `{channel}` on server `{channel.guild}`")
 			tasks.append(self.loop.create_task(auto_schedule(cron.interval, channel), name=f"{channel.id}"))
 		session.close()
-		logging.info(f'We have logged in as {self.user}')
 
 bot = PesistentBot()
 
