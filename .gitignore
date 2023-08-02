@@ -6,4 +6,3 @@ cron.txt
 planning.json
 planning.csv
 .env
-*.lock
