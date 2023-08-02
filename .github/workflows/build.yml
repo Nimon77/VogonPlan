@@ -30,4 +30,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           push: true
-          tags: ghcr.io/nimon77/vogonplan:${{ env.RELEASE_VERSION }}
+          tags: |
+            ghcr.io/nimon77/vogonplan:latest
+            ghcr.io/nimon77/vogonplan:${{ env.RELEASE_VERSION }}
+      
