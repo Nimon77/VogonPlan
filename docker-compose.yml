@@ -1,12 +1,13 @@
 version: "3.9"
 
 services:
-  vogonplan:
+  bot:
     image: ghcr.io/nimon77/vogonplan:latest
     depends_on:
       postgres:
         condition: service_healthy
     environment:
+      TZ: Europe/Paris
       DISCORD_TOKEN: ${DISCORD_TOKEN}
       ENGINE_URL: ${ENGINE_URL}
       # DEBUG: "true"
@@ -21,6 +22,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
+      TZ: Europe/Paris
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_USER: ${POSTGRES_USER}
     restart: unless-stopped
