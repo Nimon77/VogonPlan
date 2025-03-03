@@ -6,3 +6,4 @@ cron.txt
 planning.json
 planning.csv
 .env
+.envrc

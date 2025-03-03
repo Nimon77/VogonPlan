@@ -1,17 +1,22 @@
-import datetime, discord
+import datetime
+import json
+
+import discord
+from sqlalchemy import Boolean, Column, Integer, String
+
 from .base import Base
-from sqlalchemy import Column, Integer, String, Boolean
+
 
 class User(Base):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True, autoincrement=True)
     discord_id = Column(String(20), nullable=False, unique=True)
-    first_name = Column(String(100), nullable=False)
-    last_name = Column(String(100), nullable=False)
+    first_name = Column(String(100), nullable=True)
+    last_name = Column(String(100), nullable=True)
     login = Column(String(100), nullable=False, unique=True)
     active = Column(Boolean, nullable=False, default=True)
 
-    def __init__(self, discord_id, first_name, last_name, login):
+    def __init__(self, discord_id, login, first_name=None, last_name=None):
         self.discord_id = discord_id
         self.first_name = first_name
         self.last_name = last_name
