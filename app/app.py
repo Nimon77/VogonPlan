@@ -155,7 +155,7 @@ class SingleButton(discord.ui.View):
         schedules = [ schedule for schedule in Schedule.get_by_date(session, date) if schedule.registered ]
         logging.debug("List Schedules: %s", schedules)
         edited_embed = interaction.message.embeds[0]
-        edited_embed.set_field_at(0, name="Matin", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedules) ]))
+        edited_embed.set_field_at(0, name="Qui ?", value="\n".join([ f"{number_to_emoji(i+1)} {schedule.user.login}" for i, schedule in enumerate(schedules) ]))
         await interaction.message.edit(embed=edited_embed)
         session.close()
 
