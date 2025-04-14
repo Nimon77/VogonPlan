@@ -73,6 +73,7 @@ class PesistentBot(commands.Bot):
                 continue
             logging.info(msg=f"Restarting cron job with interval `{cron.interval}` for channel `{channel}` on server `{channel.guild}`")
             tasks.append(self.loop.create_task(auto_schedule(cron.interval, channel), name=f"{channel.id}"))
+            tasks.append(self.loop.create_task(ping_schedule("0 10 * * 1-5", channel), name=f"{channel.id}-ping"))
         session.close()
 
 bot = PesistentBot()
@@ -95,6 +96,7 @@ async def start_schedule(interaction: discord.Interaction, interval: str):
             session.commit()
             session.close()
             tasks.append(bot.loop.create_task(auto_schedule(interval, interaction.channel), name=f'{interaction.channel_id}'))
+            tasks.append(bot.loop.create_task(ping_schedule("0 10 * * 1-5", interaction.channel), name=f'{interaction.channel_id}-ping'))
             await interaction.response.send_message(f"Saving this channel for cron job `{interval}`")
         except Exception as e:
             logging.error(f"Error while adding cron job to database : {e}")
@@ -125,7 +127,7 @@ async def stop_schedule(interaction: discord.Interaction):
         session.commit()
         session.close()
         for task in tasks:
-            if task.get_name() == str(interaction.channel_id):
+            if task.get_name() == str(interaction.channel_id) or task.get_name() == f"{interaction.channel_id}-ping":
                 task.cancel()
                 tasks.remove(task)
                 break
@@ -209,10 +211,32 @@ async def auto_schedule(interval, channel):
         while not bot.is_closed():
             await asyncio.sleep(cron.next(default_utc=True))
             now = datetime.now()
-            await channel.send(f"<a:dancing_duck:1105889736486297602> Hello <@&1346134847734808689>! The schedule for week {(now + timedelta(days=(-now.weekday())+7)).isocalendar().week} is ready! <a:dancing_duck:1105889736486297602>")
+            await channel.send(f"<a:dancing_duck:1105889736486297602> Hello <@&1339965567297130617>! The schedule for week {(now + timedelta(days=(-now.weekday())+7)).isocalendar().week} is ready! <a:dancing_duck:1105889736486297602>")
             await send_schedule(channel, now + timedelta(days=(-now.weekday())+7))
     except asyncio.CancelledError:
         logging.debug(f"Stop cron job {interval} for channel {channel}")
+
+async def ping_schedule(interval, channel):
+    await bot.wait_until_ready()
+    cron = CronTab(interval)
+    logging.debug(f"Start ping cron job {interval} for channel {channel}")
+    while not bot.is_closed():
+        await asyncio.sleep(cron.next(default_utc=True))
+        now = datetime.now()
+        session = Session()
+        users_today = Schedule.get_by_date(session, now)
+        users_today = [ user for user in users_today if user.registered ]
+        logging.debug(f"Users today: {users_today}")
+        if len(users_today) > 0:
+            message = ":duck: Today is **YOUR** day! "
+            for user in users_today:
+                user = User.get_by_id(session, user.user_id)
+                message += f"<@{user.discord_id}> "
+            await channel.send(message)
+        else:
+            message = ":duck: No one is scheduled today! <@&1339965567297130617> :duck:"
+            await channel.send(message)
+        await asyncio.sleep(60)
 
 @bot.tree.command(name="manual_schedule", description="Send the schedule for the selected week")
 @discord.app_commands.default_permissions(administrator=True)
