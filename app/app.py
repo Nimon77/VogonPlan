@@ -5,6 +5,7 @@ import logging
 import os
 import signal
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import coloredlogs
 import discord
@@ -209,7 +210,7 @@ async def auto_schedule(interval, channel):
         cron = CronTab(interval)
         logging.debug(f"Start cron job {interval} for channel {channel}")
         while not bot.is_closed():
-            await asyncio.sleep(cron.next(default_utc=True))
+            await asyncio.sleep(cron.next(now=datetime.now(ZoneInfo("Europe/Paris"))))
             now = datetime.now()
             await channel.send(f"<a:dancing_duck:1105889736486297602> Hello <@&1339965567297130617>! The schedule for week {(now + timedelta(days=(-now.weekday())+7)).isocalendar().week} is ready! <a:dancing_duck:1105889736486297602>")
             await send_schedule(channel, now + timedelta(days=(-now.weekday())+7))
@@ -221,7 +222,7 @@ async def ping_schedule(interval, channel):
     cron = CronTab(interval)
     logging.debug(f"Start ping cron job {interval} for channel {channel}")
     while not bot.is_closed():
-        await asyncio.sleep(cron.next(default_utc=True))
+        await asyncio.sleep(cron.next(now=datetime.now(ZoneInfo("Europe/Paris"))))
         now = datetime.now()
         session = Session()
         users_today = Schedule.get_by_date(session, now)
