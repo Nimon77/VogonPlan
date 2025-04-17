@@ -88,8 +88,8 @@ bot = PesistentBot()
 async def start_schedule(interaction: discord.Interaction, interval: str):
     global tasks
     logging.debug(f"User {interaction.user} request start schedule cron in channel `{interaction.channel}` with interval `{interval}` on server `{interaction.guild}`")
-    logging.debug(f"Tasks : {[int(task.get_name()) for task in tasks]}")
-    if interaction.channel.id not in [int(task.get_name()) for task in tasks]:
+    logging.debug(f"Tasks : {[task.get_name() for task in tasks]}")
+    if f"{interaction.channel.id}" not in [task.get_name() for task in tasks]:
         logging.debug(f"Starting cron job in {interaction.channel_id}")
         try:
             session = Session()
@@ -131,7 +131,6 @@ async def stop_schedule(interaction: discord.Interaction):
             if task.get_name() == str(interaction.channel_id) or task.get_name() == f"{interaction.channel_id}-ping":
                 task.cancel()
                 tasks.remove(task)
-                break
         await interaction.response.send_message(f"Stopping any cron job in this channel", ephemeral=True)
     else:
         await interaction.response.send_message(f"No cron job in this channel", ephemeral=True)
